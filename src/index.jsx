@@ -11,12 +11,17 @@ export default class Scrollbar extends Component {
 		this.prevMouseDownPos = 0;
 		
 		// dependent defaults
+		this.height = null;
 		this.size = 4;
 		this.draggingTriggerSize = 8;
 		this.trackOffsetFromEdge = 2;
 		this.radius = 4;
-		this.thumbColor = "rgb(128,128,128)";
-		this.thumbDragColor = "rgba(0,0,0,0.75)";
+		this.thumbColor = "rgb(128, 128, 128)";
+		this.thumbDragColor = "rgba(0, 0, 0, 0.75)";
+		this.paddingTop = 0;
+		this.paddingLeft = 0;
+		this.paddingRight = this.trackOffsetFromEdge;
+		this.paddingBottom = this.trackOffsetFromEdge;
 
 		// boilerplate
 		this.Wrapper = React.createRef();
@@ -25,10 +30,11 @@ export default class Scrollbar extends Component {
 		this.ThumbY = React.createRef();
 		this.DummyX = React.createRef();
 		this.DummyY = React.createRef();
-		this.handleScroll = this.handleScroll.bind(this);
+		this.update = this.update.bind(this);
 		this.handleMouseDown = this.handleMouseDown.bind(this);
 		this.handleMouseMove = this.handleMouseMove.bind(this);
 		this.handleMouseUp = this.handleMouseUp.bind(this);
+		this.handleWheel = this.handleWheel.bind(this);
 		this.handleDragStart = this.handleDragStart.bind(this);
 		this.handleMouseOverComponent = this.handleMouseOverComponent.bind(this);
 		this.handleMouseLeaveComponent = this.handleMouseLeaveComponent.bind(this);
@@ -40,9 +46,9 @@ export default class Scrollbar extends Component {
 		if (this.props.thumbDragColor) this.thumbDragColor = this.props.thumbDragColor;
 
 		// draggingTriggerSize
-		if (this.props.size) this.size = this.props.size;
-		if (this.props.trackOffsetFromEdge) this.trackOffsetFromEdge = this.props.trackOffsetFromEdge;
-		if (this.props.draggingTriggerSize) this.draggingTriggerSize = this.props.draggingTriggerSize;
+		if (this.props.size) this.size = parseInt(this.props.size);
+		if (this.props.trackOffsetFromEdge) this.trackOffsetFromEdge = parseInt(this.props.trackOffsetFromEdge);
+		if (this.props.draggingTriggerSize) this.draggingTriggerSize = parseInt(this.props.draggingTriggerSize);
 		else this.draggingTriggerSize = parseInt(this.size) + parseInt(this.trackOffsetFromEdge) * 2;
 		
 		// radius
@@ -54,8 +60,9 @@ export default class Scrollbar extends Component {
 		if (this.Content.current.offsetHeight == this.Content.current.scrollHeight + this.findDefaultScrollbarSize()) {
 			this.ThumbY.current.parentElement.style.opacity = 0;
 		}
-		window.addEventListener("resize", this.handleScroll);
-		this.handleScroll();
+		window.addEventListener("resize", this.update);
+		
+		this.update();
 	}
 
 	findDefaultScrollbarSize() {
@@ -71,29 +78,30 @@ export default class Scrollbar extends Component {
 		return 100 - dummy.getBoundingClientRect().width;
 	}
 
-	getBottomPaddingForScrollbarY() {
-		if (!this.props.height) return this.draggingTriggerSize;
-		else return 0;
+	findHeight(el) {
+		if (this.props.height)
+			this.height = this.props.height;
+		else {
+			let computedStyles = window.getComputedStyle(el.parentElement);
+			let paddingTop = parseInt(computedStyles.getPropertyValue("padding-top"));
+			let paddingBottom = parseInt(computedStyles.getPropertyValue("padding-top"));
+			this.height = el.parentElement.offsetHeight - paddingTop - paddingBottom;
+		}
 	}
 
-	getRightPaddingForScrollbarX() {
-		if (!this.props.width) return this.draggingTriggerSize;
-		else return 0;
-	}
-
-	handleScroll(e) {	
+	update(e) {	
 		const defaultScrollbarWidth = this.findDefaultScrollbarSize();	
-		const Wrapper = this.Wrapper.current;
+		const Wrapper = this.Wrapper;//.current;
 		const Content = this.Content.current;
 		const ThumbX = this.ThumbX.current;
 		const ThumbY = this.ThumbY.current;
 		const ContentParent = Content.parentElement;
 		
-		// hide default scrollbars	
-		Content.style.width = `${ContentParent.offsetWidth + defaultScrollbarWidth}px`;	
+		this.findHeight(Wrapper);
+		Wrapper.style.height = `${this.height}px`;
 
-		if (!this.props.height)
-			Wrapper.style.height = `${Content.offsetHeight - defaultScrollbarWidth}px`;
+		// HIDING DEFAULT SCROLLBARS	
+		Content.style.width = `${ContentParent.offsetWidth + defaultScrollbarWidth}px`;	
 		Content.style.height = `${ContentParent.offsetHeight + defaultScrollbarWidth}px`;
 		
 		// update ThumbY height and position
@@ -104,18 +112,39 @@ export default class Scrollbar extends Component {
 		ThumbX.style.width = `${Content.clientWidth / Content.scrollWidth * 100}%`;
 		ThumbX.style.left = `${Content.scrollLeft / Content.scrollWidth * 100}%`;
 
+		// ADJUSTING CUSTOM SCROLLBARS
 		// hide vertical scrollbar if unnecessary
-		if (Content.scrollHeight == Content.clientHeight) ThumbY.parentElement.style.opacity = 0;
-		else ThumbY.parentElement.style.opacity = 1;
+		if (Content.scrollHeight == Content.clientHeight){
+			ThumbY.parentElement.style.opacity = 0;
+			this.paddingRight = 0;
+		} else {
+			ThumbY.parentElement.style.opacity = 1;
+			this.paddingRight = this.size + this.trackOffsetFromEdge;
+		}
 
 		// hide horizontal scrollbar if unnecessary
-		if (Content.scrollWidth == Content.clientWidth) ThumbX.parentElement.style.opacity = 0;
-		else ThumbX.parentElement.style.opacity = 1;
+		if (Content.scrollWidth == Content.clientWidth) {
+			ThumbX.parentElement.style.opacity = 0;
+			this.paddingBottom = 0;
+		} else {
+			ThumbX.parentElement.style.opacity = 1;
+			this.paddingBottom = this.size + this.trackOffsetFromEdge;
+		}
+
+		ThumbY.parentElement.parentElement.style.paddingBottom = `${this.paddingBottom}px`;
+		ThumbX.parentElement.parentElement.style.paddingRight = `${this.paddingRight}px`;
+
 	}
 
 	handleMouseOverComponent(e) {
-		this.ThumbX.current.parentElement.style.opacity = 1; 
-		this.ThumbY.current.parentElement.style.opacity = 1; 
+		const Content = this.Content.current;
+		
+		if (Content.scrollWidth > Content.clientWidth) {
+			this.ThumbX.current.parentElement.style.opacity = 1; 
+		}
+		if (Content.scrollHeight > Content.clientHeight) {
+			this.ThumbY.current.parentElement.style.opacity = 1; 
+		}
 	}
 
 	handleMouseLeaveComponent(e) {
@@ -131,6 +160,8 @@ export default class Scrollbar extends Component {
 		e.target.style.top = "0px";
 		e.target.style.left = "0px";
 
+		this.Wrapper.classList.add("drag");
+
 		if (e.target == this.DummyY.current) {
 			this.prevMouseDownPos = e.clientY;
 			this.ThumbY.current.style.backgroundColor = this.thumbDragColor;
@@ -139,6 +170,7 @@ export default class Scrollbar extends Component {
 			this.ThumbX.current.style.backgroundColor = this.thumbDragColor;
 		} 
 	}
+
 
 	handleMouseMove(e) {
 		if (this.dragEnabled) {
@@ -159,6 +191,8 @@ export default class Scrollbar extends Component {
 	handleMouseUp(e) {
 		this.dragEnabled = false;
 		e.target.style.position = "absolute";
+		this.Wrapper.classList.remove("drag");
+
 		if (e.target == this.DummyY.current) {
 			e.target.style.width = `${this.draggingTriggerSize}px`;
 			e.target.style.left = `auto`;
@@ -172,20 +206,34 @@ export default class Scrollbar extends Component {
 		}
 	}
 
+	handleWheel(e) {	
+		//TODO: smooth scrolling
+		if (e.target == this.DummyY.current) {
+			this.Content.current.scrollBy(0, e.deltaY);
+		}
+		if (e.target == this.DummyX.current) {		
+			this.Content.current.scrollBy(e.deltaY, 0);
+		}
+	}
+
 	handleDragStart(e) {
 		e.preventDefault();
 	}
 
+
 	render() {
 		return (
-			<ScrollWrapper ref={this.Wrapper}
-				width={`${this.props.width}px`}
-				height={`${this.props.height}px`}
+			<ScrollWrapper ref={el => {
+				this.Wrapper = el;
+				this.findHeight(el);
+			}}
 				onMouseOver={this.handleMouseOverComponent}
 				onMouseLeave={this.handleMouseLeaveComponent}>
+				<React.Fragment>
 				<CustomScrollbarWrapper
 					width={`${this.size}px`}
-					height={`${this.props.height - this.size}px`}
+					paddingTop={`${this.paddingTop}px`}
+					paddingBottom={`${this.paddingBottom}px`}
 					right={`${this.trackOffsetFromEdge}px`}
 					top="0px">
 					<CustomScrollbarFiller bgColor={this.props.trackColor} radius={`${this.radius}px`}>
@@ -198,6 +246,7 @@ export default class Scrollbar extends Component {
 							onMouseMoveCapture={this.handleMouseMove}
 							onMouseUp={this.handleMouseUp}
 							onMouseLeave={this.handleMouseUp}
+							onWheel={this.handleWheel}
 						/> 
 						<CustomScrollbarElement ref={this.ThumbY}
 							color={this.thumbColor}
@@ -207,7 +256,8 @@ export default class Scrollbar extends Component {
 				</CustomScrollbarWrapper>
 				<CustomScrollbarWrapper
 					height={`${this.size}px`}
-					width={`${this.props.width - this.draggingTriggerSize}px`}
+					paddingLeft={`${this.paddingLeft}px`}
+					paddingRight={`${this.paddingRight}px`}
 					bottom={`${this.trackOffsetFromEdge}px`}
 					left="0px">
 					<CustomScrollbarFiller bgColor={this.props.trackColor} radius={`${this.radius}px`}>
@@ -220,6 +270,7 @@ export default class Scrollbar extends Component {
 							onMouseMoveCapture={this.handleMouseMove}
 							onMouseUp={this.handleMouseUp}
 							onMouseLeave={this.handleMouseUp}
+							onWheel={this.handleWheel}
 						/> 
 						<CustomScrollbarElement ref={this.ThumbX}
 							color={this.thumbColor}
@@ -228,13 +279,17 @@ export default class Scrollbar extends Component {
 					</CustomScrollbarFiller>
 				</CustomScrollbarWrapper>
 				<DefaultScrollHider>
-					<Content ref={this.Content}	onScroll={this.handleScroll}>		
+					<Content ref={this.Content}	onScroll={this.update}>		
 						{this.props.children}
 					</Content>
 				</DefaultScrollHider>
+			</React.Fragment>
 			</ScrollWrapper>
 		)
 	}
+
+
+	
 }
 
 
@@ -259,6 +314,11 @@ const CustomScrollbarWrapper = styled.div`
 	left: ${props => props.left || "auto"};
 	right: ${props => props.right || "auto"};
 	bottom: ${props => props.bottom || "auto"};
+	box-sizing: border-box;
+	padding-top:  ${props => props.paddingTop || "0"};
+	padding-bottom:  ${props => props.paddingBottom || "0"};
+	padding-left:  ${props => props.paddingLeft || "0"};
+	padding-right:  ${props => props.paddingRight || "0"};
 	z-index: 90;
 `;
 
@@ -269,6 +329,7 @@ const CustomScrollbarFiller = styled.div`
 	position: relative;
 	border-radius: ${props => props.radius || "0px"};
 	transition: 0.1s;
+	opacity: 0;
 `;
 
 const CustomScrollbarElement = styled.div`
@@ -278,7 +339,6 @@ const CustomScrollbarElement = styled.div`
 	position: absolute;
 	top: 0;
 	left: 0;
-	opacity: 1;
 	border-radius: ${props => props.radius || "4px"};
 `;
 
