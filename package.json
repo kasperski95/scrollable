@@ -1,5 +1,5 @@
 {
-  "name": "scrollable",
+  "name": "kas-scrollable",
   "version": "1.0.0",
   "description": "Custom scrollbar as react component.",
   "main": "index.js",
@@ -14,8 +14,8 @@
   ],
   "homepage": "https://github.com/kasperski95/scrollable#readme",
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/kasperski95/scrollable.git"
+    "type": "git",
+    "url": "https://github.com/kasperski95/scrollable.git"
   },
   "author": "Arkadiusz Kasprzyk",
   "license": "ISC",
@@ -25,7 +25,7 @@
     "npm": "^6.4.1",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
-    "styled-components": "^4.1.1"
+    "styled-components": "^4.1.2"
   },
   "peerDependencies": {
     "react": "^16.6.3",
@@ -39,7 +39,7 @@
     "babel-cli": "^6.24.1",
     "babel-core": "^6.24.1",
     "babel-loader": "^8.0.4",
-    "babel-plugin-styled-components": "^1.9.0",
+    "babel-plugin-styled-components": "^1.9.2",
     "babel-preset-env": "^1.5.1",
     "webpack": "^4.20.2",
     "webpack-cli": "^3.1.2"

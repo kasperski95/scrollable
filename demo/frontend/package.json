@@ -8,7 +8,7 @@
   "license": "UNLICENCED",
   "private": true,
   "dependencies": {
-    "custom-scrollbar-component": "file:../..",
+    "kas-scrollable": "file:../..",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
     "react-router-dom": "^4.3.1",

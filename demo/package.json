@@ -1,5 +1,5 @@
 {
-  "name": "nisoko-workspace",
+  "name": "kas-create-react-express-app",
   "devDependencies": {
     "concurrently": "^4.0.1",
     "wait-on": "^3.1.0"
@@ -10,14 +10,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.com/kasperski95/nisoko.git"
+    "url": "https://github.com/kasperski95/create-nodejs-react-app.git"
   },
   "author": "Arkadiusz Kasprzyk",
   "license": "UNLICENCED",
   "private": true,
-  "bugs": {
-    "url": "https://gitlab.com/kasperski95/nisoko/issues"
-  },
-  "homepage": "https://gitlab.com/kasperski95/nisoko#README",
+  "homepage": "https://github.com/kasperski95/create-nodejs-react-app#README",
   "dependencies": {}
 }

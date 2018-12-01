@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import Scrollable, {ScrollableBright} from 'custom-scrollbar-component'
+import Scrollable, {ScrollableBright} from 'kas-scrollable'
 import styled from 'styled-components'
 
 
@@ -133,6 +133,6 @@ const Widget = styled.div`
 const Block = styled.div`
 	width: 500px;
 	height: 500px;
-	background-image: url("/img/sample.png");
+	background-image: url("https://loremflickr.com/600/600");
 	background-size: cover;
 `;
