@@ -1,7 +1,7 @@
 {
-  "name": "custom-scrollbar-component",
+  "name": "scrollable",
   "version": "1.0.0",
-  "description": "",
+  "description": "Custom scrollbar as react component.",
   "main": "index.js",
   "scripts": {
     "start": "concurrently webpack \"cd demo && npm start\""
@@ -12,6 +12,11 @@
     "react",
     "component"
   ],
+  "homepage": "https://github.com/kasperski95/scrollable#readme",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/kasperski95/scrollable.git"
+  },
   "author": "Arkadiusz Kasprzyk",
   "license": "ISC",
   "dependencies": {
