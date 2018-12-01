@@ -54,3 +54,6 @@ export default class Demo extends Component {
         import {ScrollableBright} from 'kas-scrollable'
     ```
 - During dragging, class *drag* is added to *ScrollbarWrapper*.
+
+## Contribution
+Run: **npm start** from the project directory to set up the environment.

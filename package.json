@@ -20,9 +20,6 @@
   "author": "Arkadiusz Kasprzyk",
   "license": "ISC",
   "dependencies": {
-    "babel-plugin-macros": "^2.4.2",
-    "concurrently": "^4.1.0",
-    "npm": "^6.4.1",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "styled-components": "^4.1.2"
@@ -42,6 +39,7 @@
     "babel-plugin-styled-components": "^1.9.2",
     "babel-preset-env": "^1.5.1",
     "webpack": "^4.20.2",
-    "webpack-cli": "^3.1.2"
+    "webpack-cli": "^3.1.2",
+    "concurrently": "^4.1.0"
   }
 }
