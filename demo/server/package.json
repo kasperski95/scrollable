@@ -1,0 +1,19 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "server": "nodemon index.js",
+    "browser": "browser-sync start --proxy \"localhost:3000\" --files \"public\" --no-notify --logLevel=warn"
+  },
+  "license": "UNLICENCED",
+  "private": true,
+  "devDependencies": {
+    "browser-sync": "^2.26.0",
+    "nodemon": "^1.18.4"
+  },
+  "dependencies": {
+    "express": "^4.16.4"
+  }
+}

@@ -1,71 +1,128 @@
 import React, { Component } from 'react'
-import styled, { createGlobalStyle } from 'styled-components'
+import styled from 'styled-components'
 
+/* PROPERTIES:
+ * width
+ * height
+ * thumbColor
+ * thumbDragColor
+ * thumbHoverColor
+ * trackColor
+ * trackDragColor
+ * trackHoverColor
+ * size
+ * dummySize
+ * radius
+ * longitudinalOffset
+ * showDummy
+ * disableAutoHide
+ */
 
-export default class Scrollbar extends Component {
-	constructor() {
-		super();
+//==============================================================================
+// COMPONENT VARIATIONS
 
-		// functional variables
+export function ScrollableBright(props) {
+	let {children, thumbDragColor, trackDragColor, thumbHoverColor, thumbColor, ...restProps} = props;
+	thumbColor = thumbColor || "rgba(255, 255, 255, 0.25)";
+	thumbHoverColor = thumbHoverColor || "rgba(255, 255, 255, 0.5)";
+	thumbDragColor = thumbDragColor || "rgba(255, 255, 255, 0.75)";
+	trackDragColor = trackDragColor || "rgba(255, 255, 255, 0.25)";
+	return (
+		<Scrollable {...restProps}
+			thumbColor={thumbColor}
+			thumbHoverColor={thumbHoverColor}
+			thumbDragColor={thumbDragColor}
+			trackDragColor={trackDragColor}
+		>
+			{children}
+		</Scrollable>
+	)
+}
+
+//==============================================================================
+// THE COMPONENT
+
+/* Default scrolling is not turned off. Default scrollbars are hidden by CSS. To
+ * get size of default scrollbar, hidden element is created.
+ *
+ * When thumb was dragged, browser was changing cursor. To prevent that, the
+ * component uses fake drag system (mouseDown, mouseMove, mouseUp). Dragging is
+ * recreated with help of Dummy elements. When event 'mousedown' is fired, the
+ * dummy element covers whole screen.
+ */
+export default class Scrollable extends Component {
+	constructor(props) {
+		super(props);
+
+		// used by drag emulating functions
 		this.dragEnabled = false;
 		this.prevMouseDownPos = 0;
 		
-		// dependent defaults
+		// public properties
+		this.width = null;
 		this.height = null;
-		this.size = 4;
-		this.draggingTriggerSize = 8;
-		this.trackOffsetFromEdge = 2;
-		this.radius = 4;
-		this.thumbColor = "rgb(128, 128, 128)";
-		this.thumbDragColor = "rgba(0, 0, 0, 0.75)";
-		this.paddingTop = 0;
-		this.paddingLeft = 0;
-		this.paddingRight = this.trackOffsetFromEdge;
-		this.paddingBottom = this.trackOffsetFromEdge;
+		this.thumbColor = this.props.thumbColor || "rgb(0, 0, 0, 0.25)";
+		this.thumbHoverColor = this.props.thumbHoverColor || "rgba(0, 0, 0, 0.5)";
+		this.thumbDragColor = this.props.thumbDragColor || "rgba(0, 0, 0, 0.75)";
+		this.trackColor = this.props.trackColor || "rgba(0,0,0,0)";
+		this.trackHoverColor = this.props.trackHoverColor || "rgba(0,0,0,0)";
+		this.trackDragColor = this.props.trackDragColor || "rgba(0,0,0,0.1)";
+		this.size = parseInt(this.props.size) || 4;
+		this.radius = parseInt(this.props.radius) || this.size;
+		this.longitudinalOffset = parseInt(this.props.longitudinalOffset) || 2;
+		this.dummySize = this.props.dummySize || this.size + this.longitudinalOffset * 2;
+		this.showDummy = this.props.showDummy || false;
+		this.disableAutoHide = this.props.disableAutoHide || false;
+		this.transitionTime = this.props.transitionTime || "0.1s";
 
-		// boilerplate
-		this.Wrapper = React.createRef();
-		this.Content = React.createRef();
-		this.ThumbX = React.createRef();
-		this.ThumbY = React.createRef();
-		this.DummyX = React.createRef();
-		this.DummyY = React.createRef();
-		this.update = this.update.bind(this);
-		this.handleMouseDown = this.handleMouseDown.bind(this);
-		this.handleMouseMove = this.handleMouseMove.bind(this);
-		this.handleMouseUp = this.handleMouseUp.bind(this);
-		this.handleWheel = this.handleWheel.bind(this);
-		this.handleDragStart = this.handleDragStart.bind(this);
-		this.handleMouseOverComponent = this.handleMouseOverComponent.bind(this);
-		this.handleMouseLeaveComponent = this.handleMouseLeaveComponent.bind(this);
-	}
-
-	componentWillMount() {
-		// set colors
-		if (this.props.thumbColor) this.thumbColor = this.props.thumbColor;
-		if (this.props.thumbDragColor) this.thumbDragColor = this.props.thumbDragColor;
-
-		// draggingTriggerSize
-		if (this.props.size) this.size = parseInt(this.props.size);
-		if (this.props.trackOffsetFromEdge) this.trackOffsetFromEdge = parseInt(this.props.trackOffsetFromEdge);
-		if (this.props.draggingTriggerSize) this.draggingTriggerSize = parseInt(this.props.draggingTriggerSize);
-		else this.draggingTriggerSize = parseInt(this.size) + parseInt(this.trackOffsetFromEdge) * 2;
-		
-		// radius
-		if (this.props.radius) this.radius = this.props.radius;
-		else this.radius = this.size;
+		// private properties
+		this.scrollbarXOffsetA = 0;
+		this.scrollbarYOffsetA = 0;
+		this.scrollbarXOffsetB = this.longitudinalOffset;
+		this.scrollbarYOffsetB = this.longitudinalOffset;
 	}
 
 	componentDidMount() {
-		if (this.Content.current.offsetHeight == this.Content.current.scrollHeight + this.findDefaultScrollbarSize()) {
-			this.ThumbY.current.parentElement.style.opacity = 0;
-		}
-		window.addEventListener("resize", this.update);
-		
-		this.update();
+		window.addEventListener("resize", this.handleResize);
+		this.handleResize();
+		this.ThumbX.parentElement.style.transition = this.transitionTime;
+		this.ThumbY.parentElement.style.transition = this.transitionTime;
 	}
 
-	findDefaultScrollbarSize() {
+	//--------------------------------------------------------------------------
+	// THE CORE
+
+	update = () => {	
+		// set component's width
+		this.Wrapper.style.width = `${this.width}px`;
+		
+		
+		this.Wrapper.style.height = `${this.height}px`;
+
+		// hide default scrollbars	
+		const defaultScrollbarSize = this.getDefaultScrollbarSize();		
+		this.Content.style.width = `${this.Content.parentElement.offsetWidth + defaultScrollbarSize}px`;	
+		this.Content.style.height = `${this.Content.parentElement.offsetHeight + defaultScrollbarSize}px`;
+
+		// update thumbs' height and position
+		this.ThumbY.style.height = `${this.Content.clientHeight / this.Content.scrollHeight * 100}%`;
+		this.ThumbY.style.top = `${this.Content.scrollTop / this.Content.scrollHeight * 100}%`;
+		this.ThumbX.style.width = `${this.Content.clientWidth / this.Content.scrollWidth * 100}%`;
+		this.ThumbX.style.left = `${this.Content.scrollLeft / this.Content.scrollWidth * 100}%`;
+
+		// prevent scrollbars' overlapping
+		if (this.Content.scrollHeight == this.Content.clientHeight) this.scrollbarXOffsetB = 0;
+		else this.scrollbarXOffsetB = this.size + this.longitudinalOffset;
+		if (this.Content.scrollWidth == this.Content.clientWidth) this.scrollbarYOffsetB = 0;
+		else this.scrollbarYOffsetB = this.size + this.longitudinalOffset;
+		this.ThumbY.parentElement.parentElement.style.paddingBottom = `${this.scrollbarYOffsetB}px`;
+		this.ThumbX.parentElement.parentElement.style.paddingRight = `${this.scrollbarXOffsetB}px`;
+	}
+
+	//--------------------------------------------------------------------------
+	//UTILS
+
+	getDefaultScrollbarSize() {
 		let dummy = document.getElementById('scrollbarDummy');
 		if (!dummy) {
 			let wrapper = document.createElement('div');
@@ -74,239 +131,245 @@ export default class Scrollbar extends Component {
 			dummy.setAttribute("id", "scrollbarDummy")
 			wrapper.appendChild(dummy);
 			document.body.appendChild(wrapper);
-		}		
-		return 100 - dummy.getBoundingClientRect().width;
-	}
-
-	findHeight(el) {
-		if (this.props.height)
-			this.height = this.props.height;
-		else {
-			let computedStyles = window.getComputedStyle(el.parentElement);
-			let paddingTop = parseInt(computedStyles.getPropertyValue("padding-top"));
-			let paddingBottom = parseInt(computedStyles.getPropertyValue("padding-top"));
-			this.height = el.parentElement.offsetHeight - paddingTop - paddingBottom;
 		}
+		return 100 - dummy.getBoundingClientRect().width;	
 	}
 
-	update(e) {	
-		const defaultScrollbarWidth = this.findDefaultScrollbarSize();	
-		const Wrapper = this.Wrapper;//.current;
-		const Content = this.Content.current;
-		const ThumbX = this.ThumbX.current;
-		const ThumbY = this.ThumbY.current;
-		const ContentParent = Content.parentElement;
-		
-		this.findHeight(Wrapper);
-		Wrapper.style.height = `${this.height}px`;
+	//--------------------------------------------------------------------------
+	// HANDLERS
 
-		// HIDING DEFAULT SCROLLBARS	
-		Content.style.width = `${ContentParent.offsetWidth + defaultScrollbarWidth}px`;	
-		Content.style.height = `${ContentParent.offsetHeight + defaultScrollbarWidth}px`;
-		
-		// update ThumbY height and position
-		ThumbY.style.height = `${Content.clientHeight / Content.scrollHeight * 100}%`;
-		ThumbY.style.top = `${Content.scrollTop / Content.scrollHeight * 100}%`;
+	handleResize = (e) => {
+		// calculate component's width
+		this.width = this.Wrapper.parentElement.offsetWidth - this.getDefaultScrollbarSize();
+		if (this.props.width && this.props.width < this.width) this.width = this.props.width;
 
-		// update ThumbX height and position
-		ThumbX.style.width = `${Content.clientWidth / Content.scrollWidth * 100}%`;
-		ThumbX.style.left = `${Content.scrollLeft / Content.scrollWidth * 100}%`;
+		this.update();
 
-		// ADJUSTING CUSTOM SCROLLBARS
-		// hide vertical scrollbar if unnecessary
-		if (Content.scrollHeight == Content.clientHeight){
-			ThumbY.parentElement.style.opacity = 0;
-			this.paddingRight = 0;
+		// calculate component's height
+		//FIXME: respect siblings
+		// if height is not specified, use all parent's space
+		let computedStyles = window.getComputedStyle(this.Wrapper.parentElement);
+		let paddingTop = parseInt(computedStyles.getPropertyValue("padding-top"));
+		let paddingBottom = parseInt(computedStyles.getPropertyValue("padding-top"));	
+		this.height = this.Wrapper.parentElement.offsetHeight - paddingTop - paddingBottom;
+
+		// don't use all space if this is unnecessary
+		if (this.contentHeight < this.height)
+			this.height = this.contentHeight;
+		if (this.props.height && this.props.height < this.height) this.height = this.props.height;
+
+		if (this.disableAutoHide) {
+			if (this.Content.scrollWidth > this.Content.clientWidth) this.ThumbX.parentElement.style.opacity = 1; 
+			else this.ThumbX.parentElement.style.opacity = 0; 
+			if (this.Content.scrollHeight > this.Content.clientHeight) this.ThumbY.parentElement.style.opacity = 1;
+			else this.ThumbY.parentElement.style.opacity = 0;
+		}
+
+		this.update();
+	}
+
+	handleMouseOverComponent = (e) => {	
+		// show scrollbars if they're necessary
+		if (this.Content.scrollWidth > this.Content.clientWidth) this.ThumbX.parentElement.style.opacity = 1; 
+		else this.ThumbX.parentElement.style.opacity = 0; 
+		if (this.Content.scrollHeight > this.Content.clientHeight) this.ThumbY.parentElement.style.opacity = 1;
+		else this.ThumbY.parentElement.style.opacity = 0;
+	}
+
+	handleMouseLeaveComponent = (e) => {
+		// hide scrollbars
+		if (!this.disableAutoHide)
+			this.ThumbX.parentElement.style.opacity = 0; 
+		if (!this.disableAutoHide)
+			this.ThumbY.parentElement.style.opacity = 0; 
+	}
+
+	handleMouseMove = (e) => {
+		// FIXME: if thumb is being dragged and cursor is over other custom scrollbar, dragging is interrupted
+		if (this.dragEnabled) {
+			if (e.target == this.DummyY) {
+				let delta = e.clientY - this.prevMouseDownPos;
+				this.prevMouseDownPos = e.clientY;
+				this.Content.scrollBy(0, delta * this.Content.scrollHeight / this.Content.clientHeight);
+			} else {
+				let delta = e.clientX - this.prevMouseDownPos;
+				this.prevMouseDownPos = e.clientX;
+				this.Content.scrollBy(delta * this.Content.scrollWidth / this.Content.clientWidth, 0);
+			}
 		} else {
-			ThumbY.parentElement.style.opacity = 1;
-			this.paddingRight = this.size + this.trackOffsetFromEdge;
-		}
-
-		// hide horizontal scrollbar if unnecessary
-		if (Content.scrollWidth == Content.clientWidth) {
-			ThumbX.parentElement.style.opacity = 0;
-			this.paddingBottom = 0;
-		} else {
-			ThumbX.parentElement.style.opacity = 1;
-			this.paddingBottom = this.size + this.trackOffsetFromEdge;
-		}
-
-		ThumbY.parentElement.parentElement.style.paddingBottom = `${this.paddingBottom}px`;
-		ThumbX.parentElement.parentElement.style.paddingRight = `${this.paddingRight}px`;
-
-	}
-
-	handleMouseOverComponent(e) {
-		const Content = this.Content.current;
-		
-		if (Content.scrollWidth > Content.clientWidth) {
-			this.ThumbX.current.parentElement.style.opacity = 1; 
-		}
-		if (Content.scrollHeight > Content.clientHeight) {
-			this.ThumbY.current.parentElement.style.opacity = 1; 
+			if (e.target == this.DummyY) {
+				this.ThumbY.style.backgroundColor = this.thumbHoverColor;
+				this.ThumbY.parentElement.style.backgroundColor = this.trackHoverColor;
+			} else {
+				this.ThumbX.style.backgroundColor = this.thumbHoverColor;
+				this.ThumbX.parentElement.style.backgroundColor = this.trackHoverColor;
+			}
 		}
 	}
 
-	handleMouseLeaveComponent(e) {
-		this.ThumbX.current.parentElement.style.opacity = 0; 
-		this.ThumbY.current.parentElement.style.opacity = 0; 
-	}
-
-	handleMouseDown(e) {
+	handleMouseDown = (e) => {
 		this.dragEnabled = true;
+		this.Wrapper.classList.add("drag");
+
+		// fullscreen dummy
 		e.target.style.position = "fixed";
 		e.target.style.width = "100%";
 		e.target.style.height = "100%";
 		e.target.style.top = "0px";
 		e.target.style.left = "0px";
-
-		this.Wrapper.classList.add("drag");
-
-		if (e.target == this.DummyY.current) {
+		if (e.target == this.DummyY) {
 			this.prevMouseDownPos = e.clientY;
-			this.ThumbY.current.style.backgroundColor = this.thumbDragColor;
+			this.ThumbY.style.backgroundColor = this.thumbDragColor;
+			this.ThumbY.parentElement.style.backgroundColor = this.trackDragColor;
 		} else {
 			this.prevMouseDownPos = e.clientX;
-			this.ThumbX.current.style.backgroundColor = this.thumbDragColor;
+			this.ThumbX.style.backgroundColor = this.thumbDragColor;
+			this.ThumbX.parentElement.style.backgroundColor = this.trackDragColor;
 		} 
 	}
 
-
-	handleMouseMove(e) {
-		if (this.dragEnabled) {
-			const Content = this.Content.current;
-			if (e.target == this.DummyY.current) {
-				let delta = e.clientY - this.prevMouseDownPos;
-				this.prevMouseDownPos = e.clientY;
-				Content.scrollBy(0, delta * Content.scrollHeight / Content.clientHeight);
-			} else {
-				let delta = e.clientX - this.prevMouseDownPos;
-				this.prevMouseDownPos = e.clientX;
-				Content.scrollBy(delta * Content.scrollWidth / Content.clientWidth, 0);
-			}
-			
-		}
+	handleMouseLeave = (e) => {
+		this.handleMouseUp(e, true);
 	}
 
-	handleMouseUp(e) {
+	handleMouseUp = (e, bLeave=false) => {
 		this.dragEnabled = false;
-		e.target.style.position = "absolute";
 		this.Wrapper.classList.remove("drag");
 
-		if (e.target == this.DummyY.current) {
-			e.target.style.width = `${this.draggingTriggerSize}px`;
+		// reset dummy
+		//FIXME: color flickering
+		let thumbResetColor = this.thumbHoverColor;
+		let trackResetColor = this.trackHoverColor;
+		if (bLeave) {
+			thumbResetColor = this.thumbColor;
+			trackResetColor = this.trackColor;
+		}
+
+		e.target.style.position = "absolute";
+		if (e.target == this.DummyY) {
+			e.target.style.width = `${this.dummySize}px`;
 			e.target.style.left = `auto`;
-			e.target.style.right = `${-this.trackOffsetFromEdge}px`;
-			this.ThumbY.current.style.backgroundColor = this.thumbColor;
+			e.target.style.right = `${-this.longitudinalOffset}px`;
+			this.ThumbY.style.backgroundColor = thumbResetColor;
+			this.ThumbY.parentElement.style.backgroundColor = trackResetColor;
 		} else {
-			e.target.style.height = `${this.draggingTriggerSize}px`;
+			e.target.style.height = `${this.dummySize}px`;
 			e.target.style.top = `auto`;
-			e.target.style.bottom = `${-this.trackOffsetFromEdge}px`;
-			this.ThumbX.current.style.backgroundColor = this.thumbColor;
+			e.target.style.bottom = `${-this.longitudinalOffset}px`;
+			this.ThumbX.style.backgroundColor = thumbResetColor;
+			this.ThumbX.parentElement.style.backgroundColor = trackResetColor;
 		}
 	}
 
-	handleWheel(e) {	
-		//TODO: smooth scrolling
-		if (e.target == this.DummyY.current) {
-			this.Content.current.scrollBy(0, e.deltaY);
-		}
-		if (e.target == this.DummyX.current) {		
-			this.Content.current.scrollBy(e.deltaY, 0);
-		}
+	handleWheel = (e) => {	
+		//TODO: smooth scrolling or find a way to make wheel work on scrollbar
+		if (e.target == this.DummyY) this.Content.scrollBy(0, e.deltaY);
+		if (e.target == this.DummyX) this.Content.scrollBy(e.deltaY, 0);
 	}
 
-	handleDragStart(e) {
-		e.preventDefault();
-	}
-
+	//--------------------------------------------------------------------------
 
 	render() {
 		return (
-			<ScrollWrapper ref={el => {
-				this.Wrapper = el;
-				this.findHeight(el);
-			}}
+			<Wrapper ref={el => (this.Wrapper = el)}
 				onMouseOver={this.handleMouseOverComponent}
 				onMouseLeave={this.handleMouseLeaveComponent}>
-				<React.Fragment>
-				<CustomScrollbarWrapper
+				<ScrollbarWrapper className="scrollbar scrollbar-y"
 					width={`${this.size}px`}
-					paddingTop={`${this.paddingTop}px`}
-					paddingBottom={`${this.paddingBottom}px`}
-					right={`${this.trackOffsetFromEdge}px`}
-					top="0px">
-					<CustomScrollbarFiller bgColor={this.props.trackColor} radius={`${this.radius}px`}>
-						<Dummy ref={this.DummyY}
-							width={`${this.draggingTriggerSize}px`}
+					paddingTop={`${this.scrollbarYOffsetA}px`}
+					paddingBottom={`${this.scrollbarYOffsetB}px`}
+					right={`${this.longitudinalOffset}px`}
+					top="0px"
+					visible={this.disableAutoHide}>
+					<Track className="scrollbar-track"
+						bgColor={this.trackColor}
+						radius={`${this.radius}px`}
+						visible={this.disableAutoHide}>
+						<Dummy className="scrollbar-dummy" 
+							ref={(el) => (this.DummyY=el)}
+							width={`${this.dummySize}px`}
 							top="0px"
-							right={`${-this.trackOffsetFromEdge}px`}
-							onDragStart={this.handleDragStart}
+							right={`${-this.longitudinalOffset}px`}
+							transitionTime={this.transitionTime}
+							visible={this.showDummy}
+							onDragStart={(e) => e.preventDefault()}
 							onMouseDown={this.handleMouseDown}
 							onMouseMoveCapture={this.handleMouseMove}
 							onMouseUp={this.handleMouseUp}
-							onMouseLeave={this.handleMouseUp}
+							onMouseLeave={this.handleMouseLeave}
 							onWheel={this.handleWheel}
 						/> 
-						<CustomScrollbarElement ref={this.ThumbY}
-							color={this.thumbColor}
+						<Thumb className="scrollbar-thumb"
+							ref={(el) => (this.ThumbY=el)}
+							bgColor={this.thumbColor}
+							transitionTime={this.transitionTime}
 							radius={`${this.radius}px`}
 						/>
-					</CustomScrollbarFiller>
-				</CustomScrollbarWrapper>
-				<CustomScrollbarWrapper
+					</Track>
+				</ScrollbarWrapper>
+				<ScrollbarWrapper className="scrollbar scrollbar-x"
 					height={`${this.size}px`}
-					paddingLeft={`${this.paddingLeft}px`}
-					paddingRight={`${this.paddingRight}px`}
-					bottom={`${this.trackOffsetFromEdge}px`}
+					paddingLeft={`${this.scrollbarXOffsetA}px`}
+					paddingRight={`${this.scrollbarYOffsetB}px`}
+					bottom={`${this.longitudinalOffset}px`}
 					left="0px">
-					<CustomScrollbarFiller bgColor={this.props.trackColor} radius={`${this.radius}px`}>
-						<Dummy ref={this.DummyX}
-							height={`${this.draggingTriggerSize}px`}
+					<Track className="scrollbar-track"
+						bgColor={this.trackColor}
+						radius={`${this.radius}px`}
+						visible={this.disableAutoHide}>
+						<Dummy className="scrollbar-dummy"
+							ref={(el) => (this.DummyX=el)}
+							height={`${this.dummySize}px`}
 							left="0px"
-							bottom={`${-this.trackOffsetFromEdge}px`}
-							onDragStart={this.handleDragStart}
+							bottom={`${-this.longitudinalOffset}px`}
+							visible={this.showDummy}
+							onDragStart={(e) => e.preventDefault()}
 							onMouseDown={this.handleMouseDown}
 							onMouseMoveCapture={this.handleMouseMove}
 							onMouseUp={this.handleMouseUp}
-							onMouseLeave={this.handleMouseUp}
+							onMouseLeave={this.handleMouseLeave}
 							onWheel={this.handleWheel}
 						/> 
-						<CustomScrollbarElement ref={this.ThumbX}
-							color={this.thumbColor}
+						<Thumb className="scrollbar-thumb"
+							ref={(el) => (this.ThumbX=el)}
+							bgColor={this.thumbColor}
+							transitionTime={this.transitionTime}
 							radius={`${this.radius}px`}
 						/>
-					</CustomScrollbarFiller>
-				</CustomScrollbarWrapper>
-				<DefaultScrollHider>
-					<Content ref={this.Content}	onScroll={this.update}>		
-						{this.props.children}
+					</Track>
+				</ScrollbarWrapper>
+				<Hider>
+					<Content ref={el => {							
+							this.Content = el;
+							/* Set up dimensions. WidthPreSetter changes width
+							 * before this function call, to get actual height.
+							 */
+							this.contentHeight = el.offsetHeight;
+							if (!this.props.width) this.width = el.offsetWidth;
+							else this.width = this.props.width;
+						}}
+						onScroll={this.update}>	
+						<WidthPreSetter width={this.props.width}>
+							{this.props.children}
+						</WidthPreSetter>	
 					</Content>
-				</DefaultScrollHider>
-			</React.Fragment>
-			</ScrollWrapper>
+				</Hider>
+			</Wrapper>
 		)
 	}
-
-
-	
 }
 
+//==============================================================================
+// STYLED COMPONENTS
 
-const Dummy = styled.div`
-	opacity: 0;
+const Wrapper = styled.div`
 	width: ${props => props.width || "100%"};
 	height: ${props => props.height || "100%"};
-	background-color: red;
-	top: ${props => props.top || "auto"};
-	left: ${props => props.left || "auto"};
-	right: ${props => props.right || "auto"};
-	bottom: ${props => props.bottom || "auto"};
-	position: absolute;
-	z-index: 99;
+	position: relative;
+	overflow: hidden;
 `;
 
-const CustomScrollbarWrapper = styled.div`
+const ScrollbarWrapper = styled.div`
 	width: ${props => props.width || "100%"};
 	height:  ${props => props.height || "100%"};
 	position: absolute;
@@ -322,24 +385,43 @@ const CustomScrollbarWrapper = styled.div`
 	z-index: 90;
 `;
 
-const CustomScrollbarFiller = styled.div`
+const Track = styled.div`
 	width: 100%;
 	height: 100%;
-	background: ${props => props.bgColor || "rgba(0,0,0,0)"};
+	background-color: ${props => props.bgColor || "rgba(0,0,0,0)"};
 	position: relative;
 	border-radius: ${props => props.radius || "0px"};
-	transition: 0.1s;
-	opacity: 0;
+	opacity: ${props => {
+		if (props.visible) return 1;
+		else return 0;
+	}};
 `;
 
-const CustomScrollbarElement = styled.div`
+const Thumb = styled.div`
 	width: 100%;
 	height: ${props => props.height || "100%"};
-	background-color: ${props => props.color || "#888"};
+	background-color: ${props => props.bgColor || "#888"};
 	position: absolute;
 	top: 0;
 	left: 0;
 	border-radius: ${props => props.radius || "4px"};
+	transition: background-color ${props => props.transitionTime || "0.1s"};
+`;
+
+const Dummy = styled.div`
+	opacity: ${props => {
+		if (props.visible) return 0.4;
+		else return 0;
+	}};
+	width: ${props => props.width || "100%"};
+	height: ${props => props.height || "100%"};
+	background-color: pink;
+	top: ${props => props.top || "auto"};
+	left: ${props => props.left || "auto"};
+	right: ${props => props.right || "auto"};
+	bottom: ${props => props.bottom || "auto"};
+	position: absolute;
+	z-index: 99;
 `;
 
 const Content = styled.div`
@@ -350,16 +432,16 @@ const Content = styled.div`
 	display: inline-block;
 `;
 
-const ScrollWrapper = styled.div`
-	width: ${props => props.width || "100%"};
-	height: ${props => props.height || "100%"};
-	position: relative;
-	overflow: hidden;
-`;
-
-const DefaultScrollHider = styled.div`
+const Hider = styled.div`
 	width: ${props => props.width || "100%"};
 	height: ${props => props.height || "100%"};
 	overflow: hidden;
 	display: inline-block;
+`;
+
+const WidthPreSetter = styled.div`
+	width: ${props => {
+		if (props.width) return `${props.width}px`;
+		else return "100%";
+	}};
 `;

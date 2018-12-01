@@ -4,18 +4,19 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "webpack",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "concurrently webpack \"cd demo && npm start\""
   },
   "keywords": [
-    "styled",
+    "custom",
     "scrollbar",
-    "custom"
+    "react",
+    "component"
   ],
   "author": "Arkadiusz Kasprzyk",
   "license": "ISC",
   "dependencies": {
     "babel-plugin-macros": "^2.4.2",
+    "concurrently": "^4.1.0",
     "npm": "^6.4.1",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",

@@ -1,0 +1,23 @@
+{
+  "name": "nisoko-workspace",
+  "devDependencies": {
+    "concurrently": "^4.0.1",
+    "wait-on": "^3.1.0"
+  },
+  "scripts": {
+    "start": "concurrently \"cd server && npm run server\" \"cd frontend && npm run bundler\" \"cd server && wait-on http://localhost:3000/ && npm run browser\"",
+    "preinstall": "cd server && npm i && cd ../frontend && npm i"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/kasperski95/nisoko.git"
+  },
+  "author": "Arkadiusz Kasprzyk",
+  "license": "UNLICENCED",
+  "private": true,
+  "bugs": {
+    "url": "https://gitlab.com/kasperski95/nisoko/issues"
+  },
+  "homepage": "https://gitlab.com/kasperski95/nisoko#README",
+  "dependencies": {}
+}
